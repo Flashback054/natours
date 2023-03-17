@@ -1,0 +1,152 @@
+extends base
+
+mixin ctaForModal(tour, startDate)
+  .cta.cta--modal
+    .cta__img.cta__img--logo
+      img(src='/img/logo-white.png', alt='Natours logo')
+    img.cta__img.cta__img--1(src=`/img/tours/${tour.images[1]}`, alt='Tour image')
+    img.cta__img.cta__img--2(src=`/img/tours/${tour.images[2]}`, alt='Tour image')
+    .cta__content
+      h2.heading-secondary= `Start day: ${startDate.date.toLocaleString('en-us', {month: 'long', year: 'numeric'})}`
+      p.cta__text= `Current number of participants: ${startDate.participants}`
+      if (!startDate.soldOut)
+        button.btn.btn--green.span-all-rows.book-tour(data-tour-id=`${tour.id}`, data-start-date=`${startDate.date.toISOString()}`) Book tour now!
+      else
+        button.btn.btn--sold-out.disable.span-all-rows Sold out
+
+mixin starReviewInput(starValue)
+  label(for=`star${starValue}`)
+    svg(class = `reviews__star reviews__star--form reviews__star--active`)
+      use(xlink:href='/img/icons.svg#icon-star')
+  if starValue<5
+    input(id=`star${starValue}` type='radio' name='rating' value=starValue style='display:none')
+  else 
+    input(id=`star${starValue}` type='radio' name='rating' value=starValue checked style='display:none')
+
+mixin postReviewForm(tour) 
+  .login-form
+    h2.heading-secondary.ma-bt-lg Post your review
+    form.form.form-review
+      .form__group
+        .form__label Your rating
+        .reviews__rating
+          each star in [1,2,3,4,5]
+            +starReviewInput(star)
+
+        
+      .form__group
+        label.form__label(for='review') Your review
+        input#review.form__input(type='text', name='review', placeholder='Your review', required)
+      .form__group
+        button.btn.btn--green.btn--review(data-tour-id=`${tour.id}`) Post review
+
+mixin reviewCard(review)
+  .reviews__card
+    .reviews__avatar
+      img.reviews__avatar-img(src=`/img/users/${review.user.photo}`, alt=`${review.user.name}`)
+      h6.reviews__user= review.user.name
+    p.reviews__text= review.review
+    .reviews__rating
+      each star in [1,2,3,4,5]
+        svg(class = `reviews__star reviews__star--${review.rating >= star? 'active': 'inactive'}`)
+          use(xlink:href='/img/icons.svg#icon-star')
+
+mixin overviewBox(description, text, icon) 
+  .overview-box__detail
+    svg.overview-box__icon
+      use(xlink:href=`/img/icons.svg#icon-${icon}`)
+    span.overview-box__label= description
+    span.overview-box__text= text
+
+block append head
+  script(src='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js')
+  script(src='https://js.stripe.com/v3/')
+  link(href='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css' rel='stylesheet')
+
+//- block script
+//-   script(src='/js/mapbox.js')
+
+block content
+  section.section-header
+    .header__hero
+      .header__hero-overlay &nbsp;
+      img.header__hero-img(src=`/img/tours/${tour.imageCover}`, alt=`${tour.name}`)
+
+    .heading-box
+      h1.heading-primary
+        span= `${tour.name} Tour`
+      .heading-box__group
+        .heading-box__detail
+          svg.heading-box__icon
+            use(xlink:href='/img/icons.svg#icon-clock')
+          span.heading-box__text= `${tour.duration} days`
+        .heading-box__detail
+          svg.heading-box__icon
+            use(xlink:href='/img/icons.svg#icon-map-pin')
+          span.heading-box__text= `${tour.startLocation.description}`
+
+  section.section-description
+    .overview-box
+      div
+        .overview-box__group
+          h2.heading-secondary.ma-bt-lg Quick facts
+
+          - const date = tour.startDates[0].date.toLocaleString('en-us', {month: 'long', year: 'numeric'})
+          +overviewBox('Next date', date, 'calendar')
+          +overviewBox('Difficulty', tour.difficulty, 'trending-up')
+          +overviewBox('Participants', `${tour.maxGroupSize} people`, 'user')
+          +overviewBox('Rating', `${tour.ratingsAverage} / 5`, 'star')
+
+        .overview-box__group
+          h2.heading-secondary.ma-bt-lg Your tour guides
+          each guide of tour.guides
+            .overview-box__detail
+              img.overview-box__img(src=`/img/users/${guide.photo}`, alt=`${guide.name}`)
+              - if (guide.role ==='lead-guide') 
+                span.overview-box__label Lead Guide
+              - if (guide.role ==='guide')
+                span.overview-box__label Tour Guide
+              span.overview-box__text= guide.name
+          
+    .description-box
+      h2.heading-secondary.ma-bt-lg= `About ${tour.name} tour`
+      - const paragraphs = tour.description.split('\n');
+      each p of paragraphs
+        p.description__text= p
+
+  section.section-pictures
+    -let i = 1;
+    each img, i in tour.images
+      .picture-box
+        img(src=`/img/tours/${img}`, alt=`${tour.name} Tour ${i + 1}` ,class = `picture-box__img picture-box__img--${i + 1}`)
+    
+  section.section-map
+    #map(data-locations=`${JSON.stringify(tour.locations)}`)
+
+  section.section-reviews
+    .reviews
+      each review in tour.reviews
+        +reviewCard(review)
+    button.btn.btn--white.btn-post-review Let us know your review!
+
+  - if (!isBooked) 
+    section.section-cta
+      .cta
+        .cta__img.cta__img--logo
+          img(src='/img/logo-white.png', alt='Natours logo')
+        img.cta__img.cta__img--1(src=`/img/tours/${tour.images[1]}`, alt='Tour image')
+        img.cta__img.cta__img--2(src=`/img/tours/${tour.images[2]}`, alt='Tour image')
+        .cta__content
+          h2.heading-secondary What are you waiting for?
+          p.cta__text= `${tour.duration} days. 1 adventure. Infinite memories. Make it yours today!`
+          if user
+            button.btn.btn--green.span-all-rows#book-tour-toggle Book tour now!
+          else
+            a.btn.btn--green.span-all-rows(href='/login') Log in to book tour
+  
+  .modal.modal--inactive
+  .modal-list.modal--inactive
+    each date in tour.startDates
+      +ctaForModal(tour, date)
+  .modal-review-form.modal--inactive
+    +postReviewForm(tour)
