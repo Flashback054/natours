@@ -1,3 +1,5 @@
+# Natours Application
+
 The final project built myself by following the course "**_Complete Node.js, Express and MongoDB Bootcamp_**" of Jonas Schmedtmann
 
 # Features

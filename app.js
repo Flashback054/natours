@@ -7,6 +7,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const hpp = require('hpp');
 const cookieParser = require('cookie-parser');
+const compression = require('compression');
 
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./controllers/errorController');
@@ -63,6 +64,8 @@ app.use(xss());
 // Body parser, limit body payload, server static files, parse cookies
 app.use(express.json({ limit: '10kb' }));
 app.use(cookieParser());
+// compress all the response text (ex: JSON or HTML)
+app.use(compression());
 
 // Prevent params pollution
 app.use(
