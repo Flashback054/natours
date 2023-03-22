@@ -1285,6 +1285,13 @@ body {
   margin: 0 auto;
 }
 
+.p__message {
+  font-size: 2.5rem;
+  font-weight: 700;
+  max-width: 50rem;
+  margin: 0 auto;
+}
+
 .login-form {
   margin: 0 auto;
   max-width: 55rem;

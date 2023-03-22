@@ -1,0 +1,14 @@
+extends base
+
+block content
+  main.main
+    .login-form
+      h2.heading-secondary.ma-bt-lg Almost there...
+      p.p__message= `Please check your email (${email}) to confirm your account.`
+      p.p__message
+        | If 
+        strong #{email}
+        |  is not your email address, please 
+        a(href='/signup') go back
+        |  and enter the correct one.
+      p.p__message If you haven't received our email in 15 minutes, please check your spam folder.

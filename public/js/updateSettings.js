@@ -9,7 +9,7 @@ export const updateSettings = async (data, type) => {
       type === 'password' ? 'update-my-password' : 'update-me';
     const res = await axios({
       method: 'PATCH',
-      url: `http://127.0.0.1:8080/api/v1/users/${urlEndpoint}`,
+      url: `/api/v1/users/${urlEndpoint}`,
       data,
     });
 

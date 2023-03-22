@@ -18,6 +18,11 @@ router.get('/my-tours', authController.protect, viewController.getMyTours);
 
 router.get('/me', authController.protect, viewController.getAccount);
 
+router.get(
+  '/check-your-email',
+  authController.isLoggedIn,
+  viewController.getCheckEmailPage
+);
 router.get('/email-verified', viewController.getEmailVerifiedPage);
 
 module.exports = router;

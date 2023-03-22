@@ -24,10 +24,13 @@ exports.getTour = catchAsync(async (req, res, next) => {
   }
 
   // 1.1) Check if the user has already booked the tour
-  const isBooked = !!(await Booking.findOne({
-    tour: tour._id,
-    user: req.user._id,
-  }));
+  let isBooked = false;
+  if (req.user) {
+    isBooked = !!(await Booking.findOne({
+      tour: tour._id,
+      user: req.user._id,
+    }));
+  }
 
   // 2) Build template
   // 3) Render template
@@ -70,6 +73,15 @@ exports.getMyTours = catchAsync(async (req, res, next) => {
     tours,
   });
 });
+
+exports.getCheckEmailPage = (req, res, next) => {
+  const { email } = req.session;
+  req.session.email = undefined;
+  res.status(200).render('checkYourEmail', {
+    title: 'Please check your email',
+    email,
+  });
+};
 
 exports.getEmailVerifiedPage = (req, res, next) => {
   res.status(200).render('confirmEmailSuccess', {

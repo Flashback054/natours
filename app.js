@@ -7,6 +7,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const hpp = require('hpp');
 const cookieParser = require('cookie-parser');
+const cookieSession = require('cookie-session');
 const compression = require('compression');
 
 const AppError = require('./utils/appError');
@@ -61,11 +62,27 @@ app.use(mongoSanitize());
 // replace malicious HTML code : ex : <div id='error-code'></div> -> &lt;div id='error-code'&gt;...
 app.use(xss());
 
+// compress all the response text (ex: JSON or HTML)
+app.use(compression());
+
 // Body parser, limit body payload, server static files, parse cookies
 app.use(express.json({ limit: '10kb' }));
 app.use(cookieParser());
-// compress all the response text (ex: JSON or HTML)
-app.use(compression());
+
+// Since in this app, sessions are only used for sending
+// temporary data along with res.redirect
+// -> don't have to save sessions in some DB (like Redis)
+app.use(
+  cookieSession({
+    name: 'session',
+    secret: process.env.SESSION_SECRET,
+
+    // Cookie Options
+    maxAge: 1 * 60 * 60 * 1000, // 1 hour
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+  })
+);
 
 // Prevent params pollution
 app.use(

@@ -45,8 +45,8 @@ const signToken = (id, secret, expires) => {
   });
 };
 
-const createSendToken = (user, statusCode, res, sendUserOption = false) => {
-  const token = signToken(
+const createJWTAndRefreshToken = (user) => {
+  const jwtToken = signToken(
     user._id,
     process.env.JWT_SECRET,
     process.env.JWT_EXPIRES_IN
@@ -77,12 +77,18 @@ const createSendToken = (user, statusCode, res, sendUserOption = false) => {
     refreshTokenOptions.secure = true;
   }
 
-  res.cookie('jwt', token, jwtCookieOptions);
-  res.cookie('refresh', refreshToken, refreshTokenOptions);
+  return { jwtToken, refreshToken, jwtCookieOptions, refreshTokenOptions };
+};
+
+const createSendToken = (user, statusCode, res, sendUser = false) => {
+  const tokens = createJWTAndRefreshToken(user);
+
+  res.cookie('jwt', tokens.jwtToken, tokens.jwtCookieOptions);
+  res.cookie('refresh', tokens.refreshToken, tokens.refreshTokenOptions);
 
   // send user in response or not
   let data;
-  if (sendUserOption) {
+  if (sendUser) {
     data = user;
     unselectFieldsInOutput.forEach((field) => {
       data[field] = undefined;
@@ -91,13 +97,22 @@ const createSendToken = (user, statusCode, res, sendUserOption = false) => {
 
   res.status(statusCode).json({
     status: 'success',
-    token,
+    token: tokens.jwtToken,
     data,
   });
 };
 
+const createTokenAndRedirect = (user, statusCode, res, url) => {
+  const tokens = createJWTAndRefreshToken(user);
+
+  res.cookie('jwt', tokens.jwtToken, tokens.jwtCookieOptions);
+  res.cookie('refresh', tokens.refreshToken, tokens.refreshTokenOptions);
+
+  res.status(statusCode).redirect(url);
+};
+
 exports.getNewAccessToken = catchAsync(async (req, res, next) => {
-  const { originalURL, refresh: refreshToken } = req.cookies;
+  const { refresh: refreshToken } = req.cookies;
 
   if (!refreshToken) {
     return next(
@@ -139,11 +154,10 @@ exports.getNewAccessToken = catchAsync(async (req, res, next) => {
 
   res.cookie('jwt', newJWT, jwtCookieOptions);
   // OriginalURL: the url browser is on before the user hit '/api/v1/users/access-token' to refresh token
-  // Was set as cookie before res.redirect('api/v1/users/access-token') -> now reset it
-  res.cookie('originalURL', '', {
-    expires: new Date(Date.now()),
-  });
-  res.redirect(originalURL);
+  // was saved as session before on req
+  const originalUrl = req.session.originalUrl || '/';
+  if (req.session.originalUrl) req.session.originalUrl = undefined;
+  res.redirect(originalUrl);
 });
 
 exports.signup = catchAsync(async (req, res, next) => {
@@ -157,7 +171,13 @@ exports.signup = catchAsync(async (req, res, next) => {
 
   await createAndSendEmailConfirm(newUser, req, next);
 
-  createSendToken(newUser, 201, res, true);
+  req.session.email = req.body.email;
+  res.status(200).json({
+    status: 'success',
+    data: {
+      user: newUser,
+    },
+  });
 });
 
 exports.confirmEmail = catchAsync(async (req, res, next) => {
@@ -170,6 +190,7 @@ exports.confirmEmail = catchAsync(async (req, res, next) => {
     emailConfirmToken: hashedToken,
     emailConfirmExpires: { $gt: Date.now() },
   });
+  // include inactive: b/c current user account is inactive -> will be skipped by query middleware
   query.includesInactive = true;
 
   const user = await query;
@@ -187,7 +208,12 @@ exports.confirmEmail = catchAsync(async (req, res, next) => {
   user.emailConfirmExpires = undefined;
   await user.save({ validateBeforeSave: false });
 
-  res.redirect(`${req.protocol}://${req.get('host')}/email-verified`);
+  createTokenAndRedirect(
+    user,
+    200,
+    res,
+    `${req.protocol}://${req.get('host')}/email-verified`
+  );
 });
 
 exports.login = catchAsync(async (req, res, next) => {
@@ -266,9 +292,7 @@ exports.protect = catchAsync(async (req, res, next) => {
 
   // No access token found
   if (!token) {
-    res.cookie('originalURL', req.originalUrl, {
-      expires: new Date(Date.now() + 30 * 1000),
-    });
+    req.session.originalUrl = req.originalUrl;
     res.redirect('/api/v1/users/access-token');
     return;
   }
@@ -280,9 +304,7 @@ exports.protect = catchAsync(async (req, res, next) => {
     decoded = await util.promisify(jwt.verify)(token, process.env.JWT_SECRET);
   } catch (err) {
     if (err instanceof jwt.TokenExpiredError) {
-      res.cookie('originalURL', req.originalUrl, {
-        expires: new Date(Date.now() + 30 * 1000),
-      });
+      req.session.originalUrl = req.originalUrl;
       res.redirect('/api/v1/users/access-token');
       return;
     }
