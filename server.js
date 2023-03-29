@@ -25,24 +25,26 @@ mongoose
   })
   .then((con) => {
     console.log('Connect to DB successfully.');
+
+    /* eslint-disable global-require */
+    const app = require('./app');
+    /* eslint-enable global-require */
+
+    const PORT = process.env.PORT || 8080;
+
+    const server = app.listen(PORT, '127.0.0.1', () => {
+      console.log(`Server started! Listening on port ${PORT}`);
+    });
+
+    // Catch ASYNC Rejection (like failed DB connection,...)
+    process.on('unhandledRejection', (err) => {
+      console.log('UNHANDLE REJECTION! Shutting down server...');
+      console.log(err.name, ': ', err.message);
+      console.log('Stack:', err.stack);
+      // Give server time to complete req currently being processed
+      server.close(() => {
+        // process.exit(0) : success, (1) : error
+        process.exit(1);
+      });
+    });
   });
-
-const app = require('./app');
-
-const PORT = process.env.PORT || 8080;
-
-const server = app.listen(PORT, '127.0.0.1', () => {
-  console.log(`Server started! Listening on port ${PORT}`);
-});
-
-// Catch ASYNC Rejection (like failed DB connection,...)
-process.on('unhandledRejection', (err) => {
-  console.log('UNHANDLE REJECTION! Shutting down server...');
-  console.log(err.name, ': ', err.message);
-  console.log('Stack:', err.stack);
-  // Give server time to complete req currently being processed
-  server.close(() => {
-    // process.exit(0) : success, (1) : error
-    process.exit(1);
-  });
-});
