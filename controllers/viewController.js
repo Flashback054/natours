@@ -75,8 +75,11 @@ exports.getMyTours = catchAsync(async (req, res, next) => {
 });
 
 exports.getCheckEmailPage = (req, res, next) => {
-  const { email } = req.session;
-  req.session.email = undefined;
+  const { email } = req.cookies;
+  res.clearCookie('email', {
+    httpOnly: true,
+  });
+
   res.status(200).render('checkYourEmail', {
     title: 'Please check your email',
     email,

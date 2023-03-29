@@ -7,7 +7,7 @@ block content
       p.p__message= `Please check your email (${email}) to confirm your account.`
       p.p__message
         | If 
-        strong #{email}
+        strong= `${email}`
         |  is not your email address, please 
         a(href='/signup') go back
         |  and enter the correct one.

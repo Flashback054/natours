@@ -154,9 +154,12 @@ exports.getNewAccessToken = catchAsync(async (req, res, next) => {
 
   res.cookie('jwt', newJWT, jwtCookieOptions);
   // OriginalURL: the url browser is on before the user hit '/api/v1/users/access-token' to refresh token
-  // was saved as session before on req
-  const originalUrl = req.session.originalUrl || '/';
-  if (req.session.originalUrl) req.session.originalUrl = undefined;
+  // was saved as cookie before on req
+  const originalUrl = req.cookies.originalUrl || '/';
+  res.clearCookie('originalUrl', {
+    expires: new Date(Date.now() + 10 * 60 * 1000),
+    httpOnly: true,
+  });
   res.redirect(originalUrl);
 });
 
@@ -171,7 +174,14 @@ exports.signup = catchAsync(async (req, res, next) => {
 
   await createAndSendEmailConfirm(newUser, req, next);
 
-  req.session.email = req.body.email;
+  // Create email cookie => page '/check-your-email' can read current email to render
+  const emailCookieOptions = {
+    expires: new Date(Date.now() + 10 * 60 * 1000),
+    httpOnly: true,
+  };
+  if (process.env.NODE_ENV === 'production') emailCookieOptions.secure = true;
+  res.cookie('email', req.body.email, emailCookieOptions);
+
   res.status(200).json({
     status: 'success',
     data: {
@@ -224,27 +234,22 @@ exports.login = catchAsync(async (req, res, next) => {
   }
 
   // 2) Check if user & password correct
-  const user = await User.findOne({ email }).select(
+  const query = User.findOne({ email }).select(
     '+password +lockExpires +loginAttempts +emailConfirmToken +emailConfirmExpires +active'
   );
+  query.includesInactive = true;
+  const user = await query;
 
   // User has delete their account || User hasn't verified their email address
   if (!user.active) {
     if (user.emailConfirmExpires > Date.now()) {
+      await createAndSendEmailConfirm(user, req, next);
       return next(
         new AppError(
-          'Your account is not active. Please check your email and verify your email address.'
+          'Your account is not active. An email verification was sent to your email. Please check your email and verify your email address.'
         )
       );
     }
-
-    await createAndSendEmailConfirm(user, req, next);
-    return next(
-      new AppError(
-        'An email verification was sent to your email. Please check your email and verify your email address.',
-        404
-      )
-    );
   }
 
   if (user && user.isLocked) {
@@ -292,7 +297,10 @@ exports.protect = catchAsync(async (req, res, next) => {
 
   // No access token found
   if (!token) {
-    req.session.originalUrl = req.originalUrl;
+    res.cookie('originalUrl', req.originalUrl, {
+      expires: new Date(Date.now() + 10 * 60 * 1000),
+      httpOnly: true,
+    });
     res.redirect('/api/v1/users/access-token');
     return;
   }
@@ -304,7 +312,10 @@ exports.protect = catchAsync(async (req, res, next) => {
     decoded = await util.promisify(jwt.verify)(token, process.env.JWT_SECRET);
   } catch (err) {
     if (err instanceof jwt.TokenExpiredError) {
-      req.session.originalUrl = req.originalUrl;
+      res.cookie('originalUrl', req.originalUrl, {
+        expires: new Date(Date.now() + 10 * 60 * 1000),
+        httpOnly: true,
+      });
       res.redirect('/api/v1/users/access-token');
       return;
     }
@@ -313,9 +324,12 @@ exports.protect = catchAsync(async (req, res, next) => {
   }
 
   // 3) Check if user still exists
-  const currentUser = await User.findById(decoded.id).select(
+  const query = User.findById(decoded.id).select(
     '+password +passwordChangedAt +active'
   );
+  query.includesInactive = true;
+  const currentUser = await query;
+
   if (!currentUser) {
     return next(
       new AppError(
@@ -388,8 +402,9 @@ exports.isLoggedIn = catchAsync(async (req, res, next) => {
   }
 
   if (req.cookies.refresh) {
-    res.cookie('originalURL', req.originalUrl, {
-      expires: new Date(Date.now() + 30 * 1000),
+    res.cookie('originalUrl', req.originalUrl, {
+      expires: new Date(Date.now() + 10 * 60 * 1000),
+      httpOnly: true,
     });
     res.redirect('/api/v1/users/access-token');
     return;
