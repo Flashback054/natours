@@ -81,9 +81,14 @@ exports.webhookCheckout = catchAsync(async (req, res, next) => {
   }
 
   // Event.data.object is the session object that we created earlier
-  if (event.type === 'checkout.session.completed')
-    await createBookingCheckout(event.data.object);
-  else res.status(400).send('Unhandled event type.');
+  if (event.type === 'checkout.session.completed') {
+    try {
+      await createBookingCheckout(event.data.object);
+    } catch (err) {
+      console.log(`Webhook Error:  ${err.message}`);
+      res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+  } else res.status(400).send('Unhandled event type.');
 
   res.status(200).json({ received: true });
 });
