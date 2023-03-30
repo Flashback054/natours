@@ -18,6 +18,7 @@ const userRouter = require('./routes/userRoutes');
 const reviewRouter = require('./routes/reviewRoutes');
 const viewRouter = require('./routes/viewRoutes');
 const bookingRouter = require('./routes/bookingRoutes');
+const bookingController = require('./controllers/bookingController');
 
 const app = express();
 
@@ -76,6 +77,9 @@ app.use(xss());
 
 // compress all the response text (ex: JSON or HTML)
 app.use(compression());
+
+// Parse body as raw buffer b/c Stripe webhook api need body as raw instead of JSON
+app.post('/webhook-checkout', express.raw(), bookingController.webhookCheckout);
 
 // Body parser, limit body payload, server static files, parse cookies
 app.use(express.json({ limit: '10kb' }));

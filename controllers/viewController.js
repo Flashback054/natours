@@ -77,6 +77,7 @@ exports.getMyTours = catchAsync(async (req, res, next) => {
 exports.getCheckEmailPage = (req, res, next) => {
   const { email } = req.cookies;
   res.clearCookie('email', {
+    expires: new Date(Date.now()),
     httpOnly: true,
   });
 

@@ -158,7 +158,7 @@ exports.getNewAccessToken = catchAsync(async (req, res, next) => {
   // was saved as cookie before on req
   const originalUrl = req.cookies.originalUrl || '/';
   res.clearCookie('originalUrl', {
-    expires: new Date(Date.now() + 10 * 60 * 1000),
+    expires: new Date(Date.now()),
     httpOnly: true,
   });
   res.redirect(originalUrl);

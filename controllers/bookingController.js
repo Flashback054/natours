@@ -1,6 +1,7 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const Tour = require('../models/tourModel');
 const Booking = require('../models/bookingModel');
+const User = require('../models/userModel');
 const factory = require('./handlerFactory');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
@@ -53,26 +54,39 @@ exports.getCheckoutSession = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.createBookingCheckout = catchAsync(async (req, res, next) => {
-  // TEMPORARY method: this way of implementing is INSECURE : everyone can create booking without paying if they know this route
-  const { tour, user, price, startDate } = req.query;
-  if (!tour || !user || !price) return next();
+const createBookingCheckout = async (session) => {
+  const tour = session.client_reference_id;
 
-  await Booking.create({ tour, tourStartDate: startDate, user, price });
-  const bookedTour = await Tour.findById(tour);
-  const startDateIndex = bookedTour.startDates.findIndex(
-    (el) => el.date.toISOString() === startDate
-  );
-  bookedTour.startDates[startDateIndex].participants += 1;
-  if (
-    bookedTour.startDates[startDateIndex].participants >=
-    bookedTour.maxGroupSize
-  )
-    bookedTour.startDates[startDateIndex].soldOut = true;
+  const email = session.customer_email;
+  const user = (await User.findOne({ email })).id;
 
-  await bookedTour.save();
+  const price = session.line_items[0].price_data.unit_amount / 100;
 
-  res.redirect(req.originalUrl.split('?')[0]);
+  await Booking.create({ tour, user, price });
+};
+
+exports.webhookCheckout = catchAsync(async (req, res, next) => {
+  // Get Stripe signature from header
+  const signature = req.headers['stripe-signature'];
+
+  let event;
+  try {
+    // Verify the signature with the secret to check if the req come from 3rd parties or STRIPE itself
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Event.data.object is the session object that we created earlier
+  if (event.type === 'checkout.session.completed')
+    await createBookingCheckout(event.data.object);
+  else res.status(400).send('Unhandled event type.');
+
+  res.status(200).json({ received: true });
 });
 
 exports.setTourAndUserIds = (req, res, next) => {
