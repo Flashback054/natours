@@ -9,6 +9,7 @@ const hpp = require('hpp');
 const cookieParser = require('cookie-parser');
 const cookieSession = require('cookie-session');
 const compression = require('compression');
+const cors = require('cors');
 
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./controllers/errorController');
@@ -20,11 +21,22 @@ const bookingRouter = require('./routes/bookingRoutes');
 
 const app = express();
 
+// Trust proxies
+app.enable('trust proxy');
+
 // Set up Pug engine
 app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, 'views'));
 
 // 1) GLOBAL MIDDLEWARE
+// Implement CORS
+app.use(cors());
+// Implement CORS on all OPTIONS request
+// Browser send OPTIONS req on preflight phase (before non-simple req like PUT,PATCH,DELETE,...)
+// -> inorder to verify that the non-simple req is safe to perform
+// -> we must set CORS on response
+app.options('*', cors());
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 //////// IMPORTANT : helmet should be used in every Express app

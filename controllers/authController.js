@@ -45,7 +45,7 @@ const signToken = (id, secret, expires) => {
   });
 };
 
-const createJWTAndRefreshToken = (user) => {
+const createJWTAndRefreshToken = (user, req) => {
   const jwtToken = signToken(
     user._id,
     process.env.JWT_SECRET,
@@ -72,7 +72,7 @@ const createJWTAndRefreshToken = (user) => {
     httpOnly: true,
   };
 
-  if (process.env.NODE_ENV === 'production') {
+  if (req.secure || req.headers['x-forwarded-proto'] === 'https') {
     jwtCookieOptions.secure = true;
     refreshTokenOptions.secure = true;
   }
@@ -80,8 +80,8 @@ const createJWTAndRefreshToken = (user) => {
   return { jwtToken, refreshToken, jwtCookieOptions, refreshTokenOptions };
 };
 
-const createSendToken = (user, statusCode, res, sendUser = false) => {
-  const tokens = createJWTAndRefreshToken(user);
+const createSendToken = (user, statusCode, req, res, sendUser = false) => {
+  const tokens = createJWTAndRefreshToken(user, req);
 
   res.cookie('jwt', tokens.jwtToken, tokens.jwtCookieOptions);
   res.cookie('refresh', tokens.refreshToken, tokens.refreshTokenOptions);
@@ -102,8 +102,8 @@ const createSendToken = (user, statusCode, res, sendUser = false) => {
   });
 };
 
-const createTokenAndRedirect = (user, statusCode, res, url) => {
-  const tokens = createJWTAndRefreshToken(user);
+const createTokenAndRedirect = (user, statusCode, req, res, url) => {
+  const tokens = createJWTAndRefreshToken(user, req);
 
   res.cookie('jwt', tokens.jwtToken, tokens.jwtCookieOptions);
   res.cookie('refresh', tokens.refreshToken, tokens.refreshTokenOptions);
@@ -144,7 +144,8 @@ exports.getNewAccessToken = catchAsync(async (req, res, next) => {
     ),
     httpOnly: true,
   };
-  if (process.env.NODE_ENV === 'production') jwtCookieOptions.secure = true;
+  if (req.secure || req.headers['x-forwarded-proto'] === 'https')
+    jwtCookieOptions.secure = true;
 
   const newJWT = signToken(
     decoded.id,
@@ -179,7 +180,8 @@ exports.signup = catchAsync(async (req, res, next) => {
     expires: new Date(Date.now() + 10 * 60 * 1000),
     httpOnly: true,
   };
-  if (process.env.NODE_ENV === 'production') emailCookieOptions.secure = true;
+  if (req.secure || req.headers['x-forwarded-proto'] === 'https')
+    emailCookieOptions.secure = true;
   res.cookie('email', req.body.email, emailCookieOptions);
 
   res.status(200).json({
@@ -221,6 +223,7 @@ exports.confirmEmail = catchAsync(async (req, res, next) => {
   createTokenAndRedirect(
     user,
     200,
+    req,
     res,
     `${req.protocol}://${req.get('host')}/email-verified`
   );
@@ -268,7 +271,7 @@ exports.login = catchAsync(async (req, res, next) => {
 
   // 3) Generate token
   await user.resetLoginAttempts();
-  createSendToken(user, 200, res);
+  createSendToken(user, 200, req, res);
 });
 
 exports.logout = (req, res, next) => {
@@ -494,7 +497,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   // implemented in UserSchema middleware
 
   // 4) Log the user in, send JWT
-  createSendToken(user, 200, res);
+  createSendToken(user, 200, req, res);
 });
 
 exports.updateMyPassword = catchAsync(async (req, res, next) => {
@@ -516,5 +519,5 @@ exports.updateMyPassword = catchAsync(async (req, res, next) => {
   await user.save();
 
   // 4) Log user in, send JWT
-  createSendToken(user, 200, res);
+  createSendToken(user, 200, req, res);
 });
