@@ -43,11 +43,9 @@ exports.getCheckoutSession = catchAsync(async (req, res, next) => {
         quantity: 1,
       },
     ],
-    payment_intent_data: {
-      metadata: {
-        tourStartDate: startDate,
-        price: tour.price,
-      },
+    metadata: {
+      tourStartDate: startDate,
+      price: tour.price,
     },
   });
 
@@ -65,7 +63,7 @@ const createBookingCheckout = async (session) => {
   const user = (await User.findOne({ email })).id;
 
   // const price = session.line_items[0].price_data.unit_amount / 100;
-  const { price, tourStartDate } = session.payment_intent_data.metadata;
+  const { price, tourStartDate } = session.metadata;
 
   await Booking.create({ tour, user, price, tourStartDate });
 };
@@ -88,13 +86,8 @@ exports.webhookCheckout = catchAsync(async (req, res, next) => {
 
   // Event.data.object is the session object that we created earlier
   if (event.type === 'checkout.session.completed') {
-    try {
-      await createBookingCheckout(event.data.object);
-    } catch (err) {
-      console.log(`Webhook Error:  ${err.message}`);
-      res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-  } else res.status(400).send('Unhandled event type.');
+    await createBookingCheckout(event.data.object);
+  }
 
   res.status(200).json({ received: true });
 });
