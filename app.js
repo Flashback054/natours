@@ -79,7 +79,11 @@ app.use(xss());
 app.use(compression());
 
 // Parse body as raw buffer b/c Stripe webhook api need body as raw instead of JSON
-app.post('/webhook-checkout', express.raw(), bookingController.webhookCheckout);
+app.post(
+  '/webhook-checkout',
+  express.raw({ type: 'application/json' }),
+  bookingController.webhookCheckout
+);
 
 // Body parser, limit body payload, server static files, parse cookies
 app.use(express.json({ limit: '10kb' }));
