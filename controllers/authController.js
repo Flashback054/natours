@@ -245,14 +245,12 @@ exports.login = catchAsync(async (req, res, next) => {
 
   // User has delete their account || User hasn't verified their email address
   if (!user.active) {
-    if (user.emailConfirmExpires > Date.now()) {
-      await createAndSendEmailConfirm(user, req, next);
-      return next(
-        new AppError(
-          'Your account is not active. An email verification was sent to your email. Please check your email and verify your email address.'
-        )
-      );
-    }
+    await createAndSendEmailConfirm(user, req, next);
+    return next(
+      new AppError(
+        'Your account is not active. An email verification was sent to your email. Please check your email and verify your email address.'
+      )
+    );
   }
 
   if (user && user.isLocked) {
