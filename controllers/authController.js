@@ -248,7 +248,8 @@ exports.login = catchAsync(async (req, res, next) => {
     await createAndSendEmailConfirm(user, req, next);
     return next(
       new AppError(
-        'Your account is not active. An email verification was sent to your email. Please check your email and verify your email address.'
+        "Your account is not active. An email verification was sent to your email. Please check your email and verify your email address.\nIf you didn't receive any email, please log in again using your email.",
+        404
       )
     );
   }

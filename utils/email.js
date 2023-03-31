@@ -31,7 +31,7 @@ module.exports = class Email {
       {
         firstName: this.firstName,
         url: this.url,
-        subject: this.subject,
+        subject,
       }
     );
 
@@ -56,7 +56,7 @@ module.exports = class Email {
       await client.sendEmail({
         From: this.from,
         To: this.to,
-        Subject: this.subject,
+        Subject: subject,
         HtmlBody: html,
         TextBody: htmlToText.convert(html),
       });
