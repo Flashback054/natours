@@ -7,6 +7,7 @@ import { displayMap } from './mapbox';
 import { updateSettings } from './updateSettings';
 import { bookTour } from './stripe';
 import { postReview } from './review';
+import { showAlert } from './alert';
 
 // DOM ELEMENT
 const mapBox = document.getElementById('map');
@@ -22,6 +23,7 @@ const modalList = document.querySelector('.modal-list');
 const postReviewBtn = document.querySelector('.btn-post-review');
 const postReviewForm = document.querySelector('.modal-review-form');
 const submitReviewBtn = document.querySelector('.btn--review');
+const alertMessage = document.querySelector('body').dataset.alert;
 
 if (mapBox) {
   const locations = JSON.parse(
@@ -149,3 +151,7 @@ if (submitReviewBtn)
     await postReview(tourId, rating, review);
     submitReviewBtn.textContent = 'Post review';
   });
+
+if (alertMessage) {
+  showAlert('success', alertMessage, 15);
+}

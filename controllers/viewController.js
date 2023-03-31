@@ -92,3 +92,12 @@ exports.getEmailVerifiedPage = (req, res, next) => {
     title: 'Email Verified',
   });
 };
+
+exports.alert = (req, res, next) => {
+  const { alert } = req.query;
+  if (alert === 'booking-success') {
+    res.locals.alert =
+      "Your booking was successful! Please check your email for confirmation. If your booking doesn't show up here immediately, please come back later.";
+  }
+  next();
+};
